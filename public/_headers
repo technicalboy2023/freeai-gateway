@@ -1,0 +1,9 @@
+# Cloudflare Workers Assets headers — applied to matching asset responses.
+# Console UI must never be framed (clickjacking over the toggle buttons).
+/admin
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'
+
+/admin/*
+  X-Frame-Options: DENY
+  Content-Security-Policy: frame-ancestors 'none'

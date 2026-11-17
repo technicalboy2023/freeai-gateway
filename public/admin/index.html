@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>FreeAI Gateway — Admin Console</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="/admin/app.css" />
+</head>
+<body>
+  <div id="login-overlay" class="overlay hidden" role="dialog" aria-modal="true" aria-labelledby="login-title">
+    <form id="login-form" class="login-card">
+      <h1 id="login-title">FreeAI Gateway</h1>
+      <p class="muted">Admin console — enter the ADMIN_PASSWORD to continue.</p>
+      <label for="login-password">Password</label>
+      <input
+        id="login-password"
+        name="password"
+        type="password"
+        autocomplete="current-password"
+        required
+        placeholder="ADMIN_PASSWORD"
+      />
+      <button type="submit" class="btn primary">Sign in</button>
+      <p id="login-error" class="error-text hidden" role="alert"></p>
+    </form>
+  </div>
+
+  <header id="app-header" class="app-header hidden">
+    <div class="brand">
+      <span class="brand-name">FreeAI Gateway</span>
+      <span class="brand-sub">admin console</span>
+    </div>
+    <button id="logout-btn" class="btn ghost" type="button">Log out</button>
+  </header>
+
+  <nav id="app-nav" class="tabs hidden" role="tablist" aria-label="Console sections">
+    <button class="tab" role="tab" id="tab-overview" aria-controls="panel-overview" aria-selected="true" type="button">Overview</button>
+    <button class="tab" role="tab" id="tab-logs" aria-controls="panel-logs" aria-selected="false" tabindex="-1" type="button">Logs</button>
+    <button class="tab" role="tab" id="tab-stats" aria-controls="panel-stats" aria-selected="false" tabindex="-1" type="button">Stats</button>
+    <button class="tab" role="tab" id="tab-fallbacks" aria-controls="panel-fallbacks" aria-selected="false" tabindex="-1" type="button">Fallbacks</button>
+    <button class="tab" role="tab" id="tab-playground" aria-controls="panel-playground" aria-selected="false" tabindex="-1" type="button">Playground</button>
+  </nav>
+
+  <div id="notice" class="notice hidden" role="status"></div>
+
+  <main id="app-main" class="hidden">
+    <section id="panel-overview" class="panel" role="tabpanel" aria-labelledby="tab-overview">
+      <div class="panel-head">
+        <h2>Providers</h2>
+        <button id="providers-reload" class="btn ghost" type="button">Reload</button>
+      </div>
+      <div id="provider-grid" class="provider-grid"></div>
+      <div class="panel-head oauth-head">
+        <h2>OAuth Providers</h2>
+        <button id="oauth-reload" class="btn ghost" type="button">Reload</button>
+      </div>
+      <div id="oauth-grid" class="oauth-grid"></div>
+    </section>
+
+    <section id="panel-logs" class="panel hidden" role="tabpanel" aria-labelledby="tab-logs">
+      <div class="panel-head">
+        <h2>Request logs</h2>
+        <div class="controls">
+          <label class="inline-label" for="logs-provider">Provider</label>
+          <select id="logs-provider"></select>
+          <label class="inline-label" for="logs-limit">Limit</label>
+          <select id="logs-limit">
+            <option>50</option>
+            <option>100</option>
+            <option>200</option>
+          </select>
+          <label class="inline-label toggle-label" for="logs-auto">
+            <input id="logs-auto" type="checkbox" />
+            Auto-refresh 5s
+          </label>
+          <button id="logs-reload" class="btn ghost" type="button">Reload</button>
+          <button id="logs-prune" class="btn danger" type="button">Prune &gt;30d</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="logs-table">
+          <thead>
+            <tr>
+              <th>Time</th><th>Provider</th><th>Model</th><th>Status</th>
+              <th>Latency</th><th>Stream</th><th>Chain</th><th>Attempt</th><th>Error</th>
+            </tr>
+          </thead>
+          <tbody id="logs-body"></tbody>
+        </table>
+      </div>
+      <p id="logs-empty" class="muted empty hidden">No log rows yet — traffic will appear here.</p>
+    </section>
+
+    <section id="panel-stats" class="panel hidden" role="tabpanel" aria-labelledby="tab-stats">
+      <div class="panel-head">
+        <h2>Usage stats <span class="muted small">(last 7 days)</span></h2>
+        <button id="stats-reload" class="btn ghost" type="button">Reload</button>
+      </div>
+      <div class="table-wrap">
+        <table id="stats-table">
+          <thead>
+            <tr><th>Provider</th><th>Requests</th><th>Errors</th><th>Error rate</th><th>Avg latency</th></tr>
+          </thead>
+          <tbody id="stats-body"></tbody>
+        </table>
+      </div>
+      <p id="stats-empty" class="muted empty hidden">No stats yet.</p>
+    </section>
+
+    <section id="panel-fallbacks" class="panel hidden" role="tabpanel" aria-labelledby="tab-fallbacks">
+      <div class="panel-head">
+        <h2>Fallback chains</h2>
+        <div class="controls">
+          <button id="chain-add" class="btn ghost" type="button">Add chain</button>
+          <button id="fallbacks-save" class="btn primary" type="button">Save chains</button>
+        </div>
+      </div>
+      <p class="muted small">
+        A chain is tried left to right; the first successful provider wins.
+        Chains are named by model prefix — <code>fast/llama-3.3-70b-versatile</code> uses the “fast” chain.
+      </p>
+      <div id="chains-editor" class="chains-editor"></div>
+      <p id="fallbacks-error" class="error-text hidden" role="alert"></p>
+    </section>
+
+    <section id="panel-playground" class="panel hidden" role="tabpanel" aria-labelledby="tab-playground">
+      <div class="panel-head"><h2>Playground</h2></div>
+      <form id="playground-form" class="playground">
+        <label for="pg-model">Model <span class="muted">(provider/model)</span></label>
+        <input id="pg-model" type="text" placeholder="groq/llama-3.3-70b-versatile" required />
+        <label for="pg-prompt">Prompt</label>
+        <textarea id="pg-prompt" rows="5" placeholder="Say something…"></textarea>
+        <div class="controls">
+          <label class="inline-label toggle-label" for="pg-stream">
+            <input id="pg-stream" type="checkbox" />
+            Stream (SSE)
+          </label>
+          <button id="pg-run" class="btn primary" type="submit">Run</button>
+        </div>
+      </form>
+      <pre id="pg-response" class="response-pane" aria-live="polite">Response will appear here.</pre>
+    </section>
+  </main>
+
+  <script src="/admin/app.js"></script>
+</body>
+</html>
